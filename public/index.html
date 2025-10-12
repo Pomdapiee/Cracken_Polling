@@ -38,9 +38,27 @@
       margin-top: 1.5rem;
       font-weight: bold;
     }
+    .status.warn { color: #f1c40f; }
+    .status.error { color: #e74c3c; }
+    .status.info { color: #3498db; }
     a {
       color: #44C283;
       word-break: break-all;
+    }
+    .button {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 14px 28px;
+      background: #44C283;
+      color: #0B1317;
+      border-radius: 8px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+    .button:hover {
+      background: #3aa270;
     }
     .hidden {
       display: none;
@@ -49,70 +67,40 @@
 </head>
 <body>
   <div class="card">
-    <h1>Telechargement en preparation</h1>
-    <p>Merci d'avoir valide LockR. Gardez cette page ouverte, le launcher va prendre le relais automatiquement.</p>
-    <p id="fallback" class="hidden"></p>
-    <p class="status" id="status">Connexion au launcher en cours...</p>
+    <h1>Finaliser le telechargement</h1>
+    <p>LockR est termine. Pour lancer le telechargement dans Cracken Launcher, cliquez sur le bouton ci-dessous.</p>
+    <p id="localLink" class="hidden"></p>
+    <a id="openLauncher" class="button" href="#" rel="noopener">Ouvrir Cracken Launcher</a>
+    <p class="status" id="status">En attente de confirmation...</p>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const port = params.get('port') || '51732';
     const localCallback = params.get('local_callback') ? decodeURIComponent(params.get('local_callback')) : '';
     const statusEl = document.getElementById('status');
-    const fallbackEl = document.getElementById('fallback');
+    const linkEl = document.getElementById('localLink');
+    const openBtn = document.getElementById('openLauncher');
 
-    function setStatus(text) {
-      statusEl.textContent = text;
+    function setStatus(message, cls) {
+      statusEl.textContent = message;
+      statusEl.className = cls ? `status ${cls}` : 'status';
     }
 
-    function showFallback(url) {
-      if (!url) return;
-      fallbackEl.classList.remove('hidden');
-      fallbackEl.innerHTML = 'Lien de secours : <a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">' + url + '</a>';
-    }
-
-    if (!token) {
-      setStatus('Token manquant. Relancez le telechargement depuis le launcher.');
-      showFallback(localCallback);
+    if (!localCallback) {
+      openBtn.classList.add('hidden');
+      setStatus('Lien invalide. Relancez le telechargement depuis le launcher.', 'error');
     } else {
-      showFallback(localCallback);
-      const endpoint = `http://127.0.0.1:${port}/api/poll-download?token=${encodeURIComponent(token)}`;
-
-      async function poll() {
-        try {
-          const response = await fetch(endpoint, { cache: 'no-store' });
-          if (!response.ok) {
-            throw new Error('HTTP ' + response.status);
-          }
-          const data = await response.json();
-
-          if (data.message) {
-            setStatus(data.message);
-          } else if (data.status === 'starting') {
-            setStatus('Lancement du telechargement...');
-          } else if (data.status === 'pending') {
-            setStatus('Connexion au launcher...');
-          }
-
-          if (data.status === 'started') {
-            setStatus(data.message || 'Telechargement lance dans le launcher. Vous pouvez fermer cette page.');
-          } else if (data.status === 'error') {
-            setStatus(data.message || 'Une erreur est survenue. Relancez le telechargement depuis le launcher.');
-          } else if (data.status === 'unknown') {
-            setStatus('Session expiree. Relancez le telechargement depuis le launcher.');
-          } else {
-            setTimeout(poll, 1500);
-          }
-        } catch (error) {
-          console.error(error);
-          setStatus('Tentative de reconnexion...');
-          setTimeout(poll, 3000);
-        }
-      }
-
-      poll();
+      linkEl.classList.remove('hidden');
+      linkEl.innerHTML = 'Lien de secours : <a href="' + localCallback.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">' + localCallback + '</a>';
+      openBtn.href = localCallback;
+      openBtn.addEventListener('click', () => {
+        setStatus('Ouverture du launcher...', 'info');
+        setTimeout(() => {
+          setStatus('Si rien ne se passe, utilisez le lien de secours.', 'warn');
+        }, 3000);
+      });
+      setStatus('Cliquez sur "Ouvrir Cracken Launcher".', 'info');
+      window.addEventListener('load', () => openBtn.focus());
     }
   </script>
 </body>
