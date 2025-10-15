@@ -41,6 +41,7 @@
     .status.warn { color: #f1c40f; }
     .status.error { color: #e74c3c; }
     .status.info { color: #3498db; }
+    .status.success { color: #44C283; }
     a {
       color: #44C283;
       word-break: break-all;
@@ -48,60 +49,145 @@
     .button {
       display: inline-block;
       margin-top: 1rem;
-      padding: 14px 28px;
+      padding: 16px 32px;
       background: #44C283;
       color: #0B1317;
       border-radius: 8px;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       font-weight: 600;
       text-decoration: none;
       transition: background 0.2s ease;
+      cursor: pointer;
+      border: none;
+      min-width: 200px;
     }
     .button:hover {
       background: #3aa270;
     }
+    .button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
     .hidden {
       display: none;
+    }
+    .loading {
+      opacity: 0.7;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Finaliser le telechargement</h1>
-    <p>LockR est termine. Pour lancer le telechargement dans Cracken Launcher, cliquez sur le bouton ci-dessous.</p>
-    <p id="localLink" class="hidden"></p>
-    <a id="openLauncher" class="button" href="#" rel="noopener">Ouvrir Cracken Launcher</a>
-    <p class="status" id="status">En attente de confirmation...</p>
+    <h1>🎮 Cracken Launcher</h1>
+    <p>Validation LockR terminée ! Cliquez sur le bouton ci-dessous pour commencer le téléchargement dans votre launcher.</p>
+    
+    <button id="startDownload" class="button" onclick="startDownload()">
+      🚀 Commencer le téléchargement
+    </button>
+    
+    <p class="status" id="status">Prêt à télécharger</p>
+    
+    <div id="fallbackInfo" class="hidden">
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #333;">
+      <p style="font-size: 0.9rem; color: #888;">
+        Si le bouton ne fonctionne pas, utilisez ce lien de secours :<br>
+        <a id="fallbackLink" href="#" target="_blank" rel="noopener">Ouvrir Cracken Launcher</a>
+      </p>
+    </div>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
     const localCallback = params.get('local_callback') ? decodeURIComponent(params.get('local_callback')) : '';
+    const port = params.get('port') || '';
     const statusEl = document.getElementById('status');
-    const linkEl = document.getElementById('localLink');
-    const openBtn = document.getElementById('openLauncher');
+    const fallbackInfo = document.getElementById('fallbackInfo');
+    const fallbackLink = document.getElementById('fallbackLink');
 
     function setStatus(message, cls) {
       statusEl.textContent = message;
       statusEl.className = cls ? `status ${cls}` : 'status';
     }
 
-    if (!localCallback) {
-      openBtn.classList.add('hidden');
-      setStatus('Lien invalide. Relancez le telechargement depuis le launcher.', 'error');
-    } else {
-      linkEl.classList.remove('hidden');
-      linkEl.innerHTML = 'Lien de secours : <a href="' + localCallback.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">' + localCallback + '</a>';
-      openBtn.href = localCallback;
-      openBtn.addEventListener('click', () => {
-        setStatus('Ouverture du launcher...', 'info');
-        setTimeout(() => {
-          setStatus('Si rien ne se passe, utilisez le lien de secours.', 'warn');
-        }, 3000);
-      });
-      setStatus('Cliquez sur "Ouvrir Cracken Launcher".', 'info');
-      window.addEventListener('load', () => openBtn.focus());
+    function startDownload() {
+      const button = document.getElementById('startDownload');
+      button.disabled = true;
+      button.classList.add('loading');
+      button.textContent = '⏳ Lancement...';
+      
+      setStatus('Lancement du téléchargement...', 'info');
+
+      // Essayer plusieurs URLs possibles
+      const possibleUrls = [];
+      
+      if (localCallback) {
+        possibleUrls.push(localCallback);
+      }
+      
+      // URLs de fallback basées sur le port
+      if (port) {
+        possibleUrls.push(`http://localhost:${port}/complete`);
+        possibleUrls.push(`http://127.0.0.1:${port}/complete`);
+      }
+      
+      // URL universelle de fallback
+      possibleUrls.push('http://localhost:51732/complete');
+      possibleUrls.push('http://127.0.0.1:51732/complete');
+
+      let attempts = 0;
+      const maxAttempts = possibleUrls.length;
+
+      function tryNextUrl() {
+        if (attempts >= maxAttempts) {
+          setStatus('❌ Impossible de contacter le launcher. Vérifiez qu\'il est ouvert.', 'error');
+          button.disabled = false;
+          button.classList.remove('loading');
+          button.textContent = '🔄 Réessayer';
+          fallbackInfo.classList.remove('hidden');
+          return;
+        }
+
+        const url = possibleUrls[attempts];
+        attempts++;
+
+        // Créer un lien invisible pour déclencher le téléchargement
+        const link = document.createElement('a');
+        link.href = url;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        
+        // Essayer d'ouvrir le lien
+        try {
+          link.click();
+          setTimeout(() => {
+            document.body.removeChild(link);
+            setStatus('✅ Téléchargement lancé ! Vous pouvez fermer cette page.', 'success');
+            button.textContent = '✅ Téléchargement lancé';
+            fallbackInfo.classList.remove('hidden');
+          }, 1000);
+        } catch (error) {
+          document.body.removeChild(link);
+          setTimeout(tryNextUrl, 500);
+        }
+      }
+
+      tryNextUrl();
     }
+
+    // Configuration de la page de fallback
+    if (localCallback) {
+      fallbackLink.href = localCallback;
+    } else {
+      fallbackInfo.classList.remove('hidden');
+    }
+
+    // Focus automatique sur le bouton
+    window.addEventListener('load', () => {
+      document.getElementById('startDownload').focus();
+    });
+
+    // Message d'accueil
+    setStatus('✅ Validation LockR réussie !', 'success');
   </script>
 </body>
 </html>
