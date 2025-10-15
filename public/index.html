@@ -126,13 +126,13 @@
       
       // URLs de fallback basées sur le port
       if (port) {
-        possibleUrls.push(`http://localhost:${port}/complete`);
-        possibleUrls.push(`http://127.0.0.1:${port}/complete`);
+        possibleUrls.push(`http://localhost:${port}/lockr/complete`);
+        possibleUrls.push(`http://127.0.0.1:${port}/lockr/complete`);
       }
       
       // URL universelle de fallback
-      possibleUrls.push('http://localhost:51732/complete');
-      possibleUrls.push('http://127.0.0.1:51732/complete');
+      possibleUrls.push('http://localhost:51732/lockr/complete');
+      possibleUrls.push('http://127.0.0.1:51732/lockr/complete');
 
       let attempts = 0;
       const maxAttempts = possibleUrls.length;
